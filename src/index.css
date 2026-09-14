@@ -1,0 +1,108 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background-color: #f8fafc; /* slate-50 */
+    color: #334155; /* slate-700 */
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9; /* slate-100 */
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* slate-300 */
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* slate-400 */
+  }
+}
+
+@layer utilities {
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  
+  /* Glassmorphism for Light Theme */
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8); /* slate-200 */
+  }
+  
+  .glass-light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+  }
+
+  /* Gradient text */
+  .gradient-text-amber, .gradient-text-green {
+    background: linear-gradient(135deg, #d97706, #f59e0b); /* amber-600, amber-500 */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Score bar */
+  .score-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #f59e0b, #eab308);
+    transition: width 0.6s ease;
+  }
+
+  /* SOH bar coloring */
+  .soh-high { background: linear-gradient(90deg, #10b981, #34d399); }
+  .soh-mid  { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .soh-low  { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+  /* Status badge pulse */
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  /* Corporate minimalist design utilities */
+  .card-rb {
+    @apply bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-150;
+  }
+  .label-mono {
+    @apply font-mono text-[10px] font-semibold uppercase tracking-widest text-slate-500;
+  }
+  .tag-rb {
+    @apply px-2.5 py-0.5 rounded text-[11px] font-medium tracking-wide bg-slate-100 text-slate-700;
+  }
+
+  /* Fade in */
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in-up {
+    animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Chain connector */
+  .chain-line::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 40px;
+    bottom: -8px;
+    width: 2px;
+    background: linear-gradient(180deg, #f59e0b 0%, transparent 100%);
+  }
+}
