@@ -90,6 +90,28 @@ export const MOCK_ORGS: Organization[] = [
     address: 'Hà Nội, Việt Nam',
     type: 'SUPPLIER',
   },
+  // ── Đối tác chiến lược theo Đề án REBATT (Phần 3 — Hệ sinh thái đối tác) ──
+  {
+    id: 'org-tuvsud-vn',
+    code: 'TUVSUD01',
+    name: 'TÜV SÜD Vietnam — Kiểm Định Độc Lập',
+    address: 'TP. HCM, Việt Nam',
+    type: 'TESTING_LAB',
+  },
+  {
+    id: 'org-vines-recycling',
+    code: 'VINESRCY',
+    name: 'VinES Battery Recycling',
+    address: 'Hải Phòng, Việt Nam',
+    type: 'RECYCLER',
+  },
+  {
+    id: 'org-vnpay-escrow',
+    code: 'VNPAYESC',
+    name: 'VNPAY / ZaloPay Escrow Gateway',
+    address: 'Hà Nội, Việt Nam',
+    type: 'SYSTEM',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -112,6 +134,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'BATCH_A',           // Fleet VinFast — Kiểm định theo lô, giảm 24% chi phí
+    passportExpiresAt: '2026-11-13T09:00:00Z', // Hạn 90 ngày từ ngày cấp 15/08
+    logisticsClass: 'CLASS_9_UN3480',    // NĐ 34/2024/NĐ-CP — Pin Li-ion đã sử dụng
     currentOrganizationId: 'org-vines-001',
     currentOrganizationName: 'VinFast EV Services',
     createdAt: '2026-08-15T07:00:00Z',
@@ -131,6 +156,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'BATCH_A',           // Lô BYD VN — Kiểm định theo lô tại cơ sở
+    passportExpiresAt: '2026-11-13T10:00:00Z', // Hạn 90 ngày
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-byd-vn-001',
     currentOrganizationName: 'BYD Auto Vietnam',
     createdAt: '2026-08-15T08:00:00Z',
@@ -150,12 +178,15 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'MODULE',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'SINGLE_B',          // Module nhỏ lẻ — Gom đơn thông minh, 0đ trả trước
+    passportExpiresAt: '2026-11-13T11:00:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-selex-001',
     currentOrganizationName: 'Selex Motors',
     createdAt: '2026-08-15T09:00:00Z',
   },
   {
-    // Demo: Pack đang bị TESTING_PENDING
+    // Demo: Pack đang bị TESTING_PENDING — Trường hợp B đang chờ gom đơn
     id: 'pack-vf5-002',
     serialNumber: 'VF5-BATT-2025-00204',
     originalVin: 'VF5VN202501284',
@@ -170,6 +201,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'TESTING_PENDING',
+    inspectionType: 'SINGLE_B',          // Gara nhỏ lẻ — đang chờ giao dịch để gom kiểm định
+    passportExpiresAt: null,             // Chưa cấp Passport
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-vines-001',
     currentOrganizationName: 'VinFast EV Services',
     createdAt: '2026-09-01T10:00:00Z',
@@ -190,6 +224,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'MODULE',
     parentPackId: 'pack-vf8-001', // ParentPack = VF8 gốc
     status: 'COLLECTED',
+    inspectionType: 'BATCH_A',           // Thuộc lô VF8 — kiểm định cùng lô
+    passportExpiresAt: null,
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-ess-vn-001',
     currentOrganizationName: 'ESS Vietnam Co., Ltd',
     createdAt: '2026-09-10T12:00:00Z',
@@ -209,6 +246,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'SINGLE_B',          // Tesla nhỏ lẻ — gom đơn
+    passportExpiresAt: '2026-12-11T10:00:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-tesla-vn-001',
     currentOrganizationName: 'Tesla Service Center (VN)',
     createdAt: '2026-09-12T10:00:00Z',
@@ -228,6 +268,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'SINGLE_B',
+    passportExpiresAt: '2026-12-12T08:30:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-lg-ensol-001',
     currentOrganizationName: 'LG Energy Solution',
     createdAt: '2026-09-13T08:30:00Z',
@@ -247,6 +290,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'BATCH_A',           // Lô VinFast lớn — kiểm định theo lô tại cơ sở
+    passportExpiresAt: '2026-12-13T01:00:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-vines-001',
     currentOrganizationName: 'VinFast EV Services',
     createdAt: '2026-09-14T01:00:00Z',
@@ -266,6 +312,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'BATCH_A',           // Lô Hyundai ESS — kiểm định theo lô
+    passportExpiresAt: '2026-12-13T02:00:00Z',
+    logisticsClass: 'CLASS_9_UN3481',    // UN 3481 — Pin trong thiết bị
     currentOrganizationId: 'org-ess-vn-001',
     currentOrganizationName: 'ESS Vietnam Co., Ltd',
     createdAt: '2026-09-14T02:00:00Z',
@@ -285,6 +334,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'BATCH_A',           // Lô CATL công nghiệp — kiểm định theo lô
+    passportExpiresAt: '2026-12-13T03:00:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-vines-001',
     currentOrganizationName: 'VinFast EV Services',
     createdAt: '2026-09-14T03:00:00Z',
@@ -304,6 +356,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'SINGLE_B',          // Nhỏ lẻ — gom đơn
+    passportExpiresAt: '2026-12-13T04:00:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-selex-001',
     currentOrganizationName: 'Selex Motors',
     createdAt: '2026-09-14T04:00:00Z',
@@ -323,6 +378,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'SINGLE_B',
+    passportExpiresAt: '2026-12-13T05:00:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-tesla-vn-001',
     currentOrganizationName: 'Tesla Service Center (VN)',
     createdAt: '2026-09-14T05:00:00Z',
@@ -342,6 +400,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'SINGLE_B',
+    passportExpiresAt: '2026-12-13T06:00:00Z',
+    logisticsClass: 'CLASS_9_UN3481',
     currentOrganizationId: 'org-lg-ensol-001',
     currentOrganizationName: 'LG Energy Solution',
     createdAt: '2026-09-14T06:00:00Z',
@@ -361,6 +422,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'MODULE',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'SINGLE_B',          // Gom đơn nhỏ lẻ hộ gia đình
+    passportExpiresAt: '2026-12-13T06:30:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-selex-001',
     currentOrganizationName: 'Selex Motors',
     createdAt: '2026-09-14T06:30:00Z',
@@ -380,6 +444,9 @@ export const MOCK_BATTERY_PACKS: BatteryPack[] = [
     formFactor: 'PACK',
     parentPackId: null,
     status: 'LISTED',
+    inspectionType: 'BATCH_A',           // Lô VinFast e34 — kiểm định theo lô
+    passportExpiresAt: '2026-12-13T07:00:00Z',
+    logisticsClass: 'CLASS_9_UN3480',
     currentOrganizationId: 'org-vines-001',
     currentOrganizationName: 'VinFast EV Services',
     createdAt: '2026-09-14T07:00:00Z',
