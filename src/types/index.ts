@@ -106,6 +106,11 @@ export interface User {
 // BATTERY PACK — Section 3.1 trong Business Spec
 // CurrentCapacityKwh = OriginalCapacityKwh × (CurrentSohPercent / 100.0)
 // ─────────────────────────────────────────────────────────────
+// Phân loại kiểm định theo mô hình REBATT Asset-Light
+// Trường hợp A: Pin cùng nguồn/lô lớn → kiểm định theo lô ngay, giảm 20-30% chi phí
+// Trường hợp B: Pin nhỏ lẻ (gara) → chi phí 0đ trả trước, gom đơn chờ giao dịch mới kiểm định
+export type InspectionType = 'BATCH_A' | 'SINGLE_B';
+
 export interface BatteryPack {
   id: string;
   serialNumber: string;
@@ -121,6 +126,12 @@ export interface BatteryPack {
   formFactor: BatteryFormFactor;      // PACK / MODULE / CELL
   parentPackId: string | null;         // ID Pack cha khi bị tách (BR-002)
   status: BatteryStatus;
+  // Phân loại kiểm định Asset-Light (Đề án mục 2.b)
+  inspectionType?: InspectionType;     // BATCH_A: Kiểm định theo lô | SINGLE_B: Gom đơn thông minh
+  // Hạn hiệu lực Battery Passport — 60-90 ngày (SLA quản trị rủi ro)
+  passportExpiresAt?: string | null;   // ISO string, null nếu chưa cấp
+  // Logistics: Hàng nguy hiểm Loại 9 theo NĐ 34/2024/NĐ-CP
+  logisticsClass?: 'CLASS_9_UN3480' | 'CLASS_9_UN3481' | null;
   currentOrganizationId: string;
   currentOrganizationName: string;
   createdAt: string;
@@ -174,6 +185,7 @@ export interface BatteryPassport {
   latestHash: string;
   isVerified: boolean;
   issuedAt: string;
+  expiresAt?: string | null; // Hạn hiệu lực 60-90 ngày (SLA quản trị rủi ro chất lượng)
   batteryPack: BatteryPack;
   events: PassportEvent[];
 }
@@ -194,6 +206,9 @@ export interface Listing {
   isSold: boolean;
   createdAt: string;
   passportCode: string;
+  // Phí sàn REBATT: 7% hoa hồng giao dịch (Đề án Phần 3 — Cách tạo doanh thu)
+  commissionRatePercent?: number;    // Mặc định 7%
+  platformFeeVnd?: number;           // = askingPrice × commissionRate
 }
 
 // ─────────────────────────────────────────────────────────────

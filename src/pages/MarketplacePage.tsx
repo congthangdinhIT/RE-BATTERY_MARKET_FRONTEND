@@ -34,25 +34,29 @@ export const MarketplacePage: React.FC = () => {
   const paginatedListings = filteredListings.slice(startIndex, startIndex + pageSize);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-16 fade-in-up">
+    <div className="font-sans pb-16 fade-in-up">
       {/* ── HEADER KHU VỰC TÌM KIẾM THEO PHONG CÁCH REBATTERY ── */}
       <section className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 pt-14 pb-8">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-4">
+        <div className="max-w-7xl mx-auto px-6 pt-2 pb-6">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
             Danh Mục Chợ Giao Dịch
           </div>
-          <h1 className="text-[36px] md:text-[44px] font-semibold leading-[1.06] tracking-tight text-slate-900 max-w-[20ch] mb-4">
-            Mạng lưới giao dịch pin Second-Life toàn cầu
+          <h1 className="text-[32px] md:text-[40px] font-semibold leading-[1.1] tracking-tight text-slate-900 max-w-[24ch] mb-3">
+            Mạng lưới giao dịch pin Second-life
           </h1>
           <p className="text-[15px] md:text-[16px] leading-[1.55] text-slate-600 max-w-[60ch] mb-8">
             So sánh công suất, tình trạng sức khỏe (SOH), khả năng tương thích BESS và chứng chỉ Passport. Liên hệ trực tiếp đối tác uy tín với nguồn pin đã được xác thực an toàn.
           </p>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-slate-200 border border-slate-200 rounded-[5px] overflow-hidden max-w-[880px]">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-px bg-slate-200 border border-slate-200 rounded-[5px] overflow-hidden max-w-[1100px]">
             <div className="bg-white px-[18px] py-4">
               <div className="font-mono text-[24px] font-semibold leading-[1.1] tracking-[-0.03em] text-slate-900">{MOCK_LISTINGS.length}</div>
               <div className="mt-[5px] font-mono text-[9.5px] font-medium uppercase tracking-[0.12em] text-slate-400">Lô pin đang niêm yết</div>
+            </div>
+            <div className="bg-white px-[18px] py-4">
+              <div className="font-mono text-[24px] font-semibold leading-[1.1] tracking-[-0.03em] text-amber-600">≥60%</div>
+              <div className="mt-[5px] font-mono text-[9.5px] font-medium uppercase tracking-[0.12em] text-slate-400">Tỷ Lệ Kiểm Định Lô A</div>
             </div>
             <div className="bg-white px-[18px] py-4">
               <div className="font-mono text-[24px] font-semibold leading-[1.1] tracking-[-0.03em] text-slate-900">86.8%</div>
@@ -60,7 +64,7 @@ export const MarketplacePage: React.FC = () => {
             </div>
             <div className="bg-white px-[18px] py-4">
               <div className="font-mono text-[24px] font-semibold leading-[1.1] tracking-[-0.03em] text-slate-900">100%</div>
-              <div className="mt-[5px] font-mono text-[9.5px] font-medium uppercase tracking-[0.12em] text-slate-400">SHA-256 Ledger Xác Thực</div>
+              <div className="mt-[5px] font-mono text-[9.5px] font-medium uppercase tracking-[0.12em] text-slate-400">SHA-256 Passport Xác Thực</div>
             </div>
           </div>
         </div>
@@ -158,7 +162,7 @@ export const MarketplacePage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Row 2: Đánh giá */}
+                  {/* Row 2: Đánh giá + kiểm định A/B */}
                   <div className="flex items-center gap-[6px]">
                     <span className="text-[10px] font-medium uppercase tracking-[0.07em] text-slate-400 w-[56px] shrink-0">Đánh giá</span>
                     <div className="flex flex-wrap gap-1.5">
@@ -171,6 +175,17 @@ export const MarketplacePage: React.FC = () => {
                       {listing.passportCode && (
                         <span className="flex items-center gap-1 px-2 py-[3px] rounded-[3px] bg-amber-50 text-amber-900 border border-amber-300 text-[11px] font-bold tracking-[0.01em]">
                           <ShieldCheck className="w-3 h-3 text-amber-600" /> Đã có Passport
+                        </span>
+                      )}
+                      {/* Badge kiểm định A/B */}
+                      {pack.inspectionType === 'BATCH_A' && (
+                        <span className="px-2 py-[3px] rounded-[3px] text-[11px] font-bold border bg-amber-50 text-amber-800 border-amber-200">
+                          🏭 Lô A
+                        </span>
+                      )}
+                      {pack.inspectionType === 'SINGLE_B' && (
+                        <span className="px-2 py-[3px] rounded-[3px] text-[11px] font-bold border bg-purple-50 text-purple-800 border-purple-200">
+                          🔄 Gom đơn B
                         </span>
                       )}
                     </div>

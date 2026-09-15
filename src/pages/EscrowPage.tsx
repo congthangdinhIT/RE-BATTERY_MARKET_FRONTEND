@@ -11,13 +11,15 @@ const STATUS_CONFIG: Record<EscrowStatus, { label: string; color: string; icon: 
   REFUNDED:  { label: 'HOÀN TIỀN (REFUNDED)',     color: 'text-blue-700 bg-blue-50 border-blue-200',      icon: XCircle,        desc: 'Tranh chấp đã xử lý xong. Tiền đã được hoàn lại cho người mua.' },
 };
 
-// Escrow flow steps (Business Spec 5.5 & 5.6)
+// Escrow flow steps — 7 bước Asset-Light model (Business Spec §5.5 & §5.6)
 const FLOW_STEPS = [
-  { key: 'create',  label: '1. Tạo Đơn Hàng',      desc: 'Tạo đơn hàng → CREATED',       active: true  },
-  { key: 'lock',    label: '2. Khóa Escrow',         desc: 'Khóa tiền → LOCKED',         active: true  },
-  { key: 'ship',    label: '3. Vận Chuyển',          desc: 'Vận chuyển Nhóm 9 (Class 9)',         active: false },
-  { key: 'accept',  label: '4. Nghiệm Thu',          desc: 'Báo cáo nghiệm thu BESS',          active: false },
-  { key: 'release', label: '5. Giải Ngân', desc: 'Đạt → RELEASED | Lỗi → DISPUTED', active: false },
+  { key: 'create',  label: '1. Tạo Đơn Hàng',        desc: 'Tạo đơn hàng → CREATED',        active: true  },
+  { key: 'lock',    label: '2. Khóa Escrow',          desc: 'VNPAY/ZaloPay khóa tiền → LOCKED',  active: true  },
+  { key: 'inspect', label: '3. Kiểm Định',            desc: 'TÜV SÜD xác nhận SOH/RUL',          active: true  },
+  { key: 'ship',    label: '4. Vận Chuyển',          desc: 'LSP Class 9 — UN 3480/3481',         active: false },
+  { key: 'qr',      label: '5. Quét QR Nghiệm Thu',   desc: 'QR SOH validation tại điểm nhận',  active: false },
+  { key: 'accept',  label: '6. Nghiệm Thu BESS',      desc: 'Xem xét kỹ thuật + nhật ký',       active: false },
+  { key: 'release', label: '7. Giải Ngân − 7%',        desc: 'Đạt → RELEASED | Lỗi → DISPUTED',   active: false },
 ];
 
 export const EscrowPage: React.FC = () => {
@@ -50,22 +52,38 @@ export const EscrowPage: React.FC = () => {
         </p>
       </div>
 
+      {/* Commission Info Banner */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
+        <div className="p-2.5 bg-amber-100 rounded-xl shrink-0">
+          <span className="text-2xl font-black text-amber-700">7%</span>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-amber-900 mb-1">Phí Hoa Hồng Sàn REBATT — 7% trên giá trị giao dịch</p>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            REBATT khấu trừ <strong>7%</strong> hoa hồng từ số tiền Escrow khi giải ngân cho người bán.
+            Thanh toán qua <strong>VNPAY / ZaloPay</strong> — hỗ trợ cả chuyển khoản ngân hàng, QR Code và ví điện tử.
+            Phí vận hành thường do người bán chịu (khấu trừ từ tiền Escrow lúc giải ngân).
+            Ví dụ: Giao dịch 68.000.000đ → REBATT nhận <strong>4.760.000đ</strong> — Người bán nhận <strong>63.240.000đ</strong>.
+          </p>
+        </div>
+      </div>
+
       {/* Escrow Flow Diagram */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-3xl p-6 md:p-8">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">Biểu Đồ Luồng Escrow (Business Spec §5.5 & §5.6)</h3>
         <div className="flex items-start gap-2 overflow-x-auto pb-4">
           {FLOW_STEPS.map((step, idx) => (
             <React.Fragment key={step.key}>
-              <div className={`flex-1 min-w-[150px] p-4 rounded-2xl border text-center transition-colors ${
+              <div className={`flex-1 min-w-[120px] p-3 rounded-2xl border text-center transition-colors ${
                 step.active
                   ? 'bg-amber-50 border-amber-200 shadow-sm'
                   : 'bg-slate-50 border-slate-200'
               }`}>
-                <p className={`text-sm font-bold mb-1.5 ${step.active ? 'text-amber-800 font-extrabold' : 'text-slate-500'}`}>{step.label}</p>
+                <p className={`text-xs font-bold mb-1.5 ${step.active ? 'text-amber-800 font-extrabold' : 'text-slate-500'}`}>{step.label}</p>
                 <p className="text-[10px] font-mono text-slate-500 bg-white px-2 py-1 rounded-lg border border-slate-100">{step.desc}</p>
               </div>
               {idx < FLOW_STEPS.length - 1 && (
-                <ArrowRight className={`w-5 h-5 mt-6 shrink-0 ${step.active ? 'text-amber-500' : 'text-slate-300'}`} />
+                <ArrowRight className={`w-4 h-4 mt-5 shrink-0 ${step.active ? 'text-amber-500' : 'text-slate-300'}`} />
               )}
             </React.Fragment>
           ))}
@@ -73,7 +91,8 @@ export const EscrowPage: React.FC = () => {
         <div className="flex flex-wrap gap-4 mt-2 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <span className="text-[11px] text-slate-600"><strong className="text-slate-900">BR-003:</strong> Chỉ khóa quỹ khi Đơn Hàng = CREATED</span>
           <span className="text-[11px] text-slate-600"><strong className="text-slate-900">BR-004:</strong> Chỉ giải ngân khi Escrow = LOCKED</span>
-          <span className="text-[11px] text-slate-600"><strong className="text-slate-900">BR-010:</strong> Vận chuyển Point-to-Point Class 9</span>
+          <span className="text-[11px] text-slate-600"><strong className="text-slate-900">BR-010:</strong> Vận chuyển Point-to-Point Class 9 — NĐ 34/2024/NĐ-CP</span>
+          <span className="text-[11px] text-slate-600"><strong className="text-slate-900">QR SOH:</strong> Xác thực SOH tại điểm giao hàng trước khi nhận tiền</span>
         </div>
       </div>
 
@@ -93,6 +112,11 @@ export const EscrowPage: React.FC = () => {
                   <p className="text-[11px] font-mono text-slate-500 font-bold mb-1 uppercase tracking-wider">Mã Giao Dịch: {tx.transactionCode}</p>
                   <p className="text-3xl font-black text-slate-900 font-mono">
                     {tx.amount.toLocaleString('vi-VN')} ₫
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Phí REBATT 7%: <span className="font-bold text-amber-700">{Math.round(tx.amount * 0.07).toLocaleString('vi-VN')} ₫</span>
+                    &nbsp;•&nbsp;
+                    Người bán nhận: <span className="font-bold text-emerald-700">{Math.round(tx.amount * 0.93).toLocaleString('vi-VN')} ₫</span>
                   </p>
                 </div>
                 <span className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold shadow-sm ${cfg.color}`}>
