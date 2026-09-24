@@ -1,32 +1,27 @@
 import React, { useState } from 'react';
-import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   BatteryCharging, Cpu, ShieldCheck, Globe, Lock,
   Layers, LayoutDashboard, LogOut, Building2,
-  ChevronDown, UserCircle, Search, Menu, X, ChevronRight
+  ChevronDown, UserCircle, Search, Menu, X, ChevronRight, ShieldAlert
 } from 'lucide-react';
 import { ROUTES } from '../../config/routes';
+import { isRouteAllowed, ROLE_CONFIGS } from '../../lib/permissions';
+import type { UserRole } from '../../lib/permissions';
+import { AccessDenied } from '../AccessDenied';
 
 const NAV_ITEMS = [
-  { path: ROUTES.MARKETPLACE,    label: 'Chợ Giao Dịch',      icon: BatteryCharging,  desc: 'Listings & Niêm yết', allowedRoles: ['BUYER', 'SYSTEM_INTEGRATOR', 'Admin', 'MANAGER_STAFF'] },
-  { path: ROUTES.SMART_MATCHING, label: 'Ghép Nối Thông Minh',  icon: Cpu,              desc: 'Ghép nối tối ưu 40/40/20', allowedRoles: ['BUYER', 'SYSTEM_INTEGRATOR', 'Admin', 'MANAGER_STAFF'] },
-  { path: ROUTES.BATTERY_PACKS,  label: 'Quản Lý Pin',          icon: Layers,           desc: 'Vòng đời & Form Factor', allowedRoles: ['SUPPLIER', 'TESTING_LAB', 'Admin', 'MANAGER_STAFF'] },
-  { path: ROUTES.PASSPORTS,      label: 'Hộ Chiếu Pin',         icon: ShieldCheck,      desc: 'SHA-256 Hash Chain', allowedRoles: ['BUYER', 'SUPPLIER', 'TESTING_LAB', 'SYSTEM_INTEGRATOR', 'LOGISTICS', 'Admin', 'MANAGER_STAFF'] },
-  { path: ROUTES.ESCROW,         label: 'Giao Dịch Ký Quỹ',     icon: Lock,             desc: 'Giao dịch ký quỹ', allowedRoles: ['BUYER', 'SUPPLIER', 'SYSTEM_INTEGRATOR', 'LOGISTICS', 'Admin', 'MANAGER_STAFF'] },
-  { path: ROUTES.BESS_PROJECTS,  label: 'Dự Án BESS',           icon: Building2,        desc: 'Vòng đời BESS §5.7', allowedRoles: ['BUYER', 'SYSTEM_INTEGRATOR', 'Admin', 'MANAGER_STAFF'] },
-  { path: ROUTES.DASHBOARD,      label: 'Bảng Điều Khiển',      icon: LayoutDashboard,  desc: 'Báo cáo theo Vai trò', allowedRoles: ['BUYER', 'SUPPLIER', 'TESTING_LAB', 'SYSTEM_INTEGRATOR', 'LOGISTICS', 'Admin', 'MANAGER_STAFF'] },
-  { path: ROUTES.EPR_COMPLIANCE, label: 'Tuân Thủ EPR & ESG',   icon: Globe,            desc: 'Báo cáo môi trường', allowedRoles: ['BUYER', 'SUPPLIER', 'TESTING_LAB', 'SYSTEM_INTEGRATOR', 'LOGISTICS', 'Admin', 'MANAGER_STAFF'] },
+  { path: ROUTES.MARKETPLACE,    label: 'Chợ Giao Dịch',      icon: BatteryCharging,  desc: 'Listings & Niêm yết' },
+  { path: ROUTES.SMART_MATCHING, label: 'Ghép Nối Thông Minh',  icon: Cpu,              desc: 'Ghép nối tối ưu 40/40/20' },
+  { path: ROUTES.BATTERY_PACKS,  label: 'Quản Lý Pin',          icon: Layers,           desc: 'Vòng đời & Form Factor' },
+  { path: ROUTES.PASSPORTS,      label: 'Hộ Chiếu Pin',         icon: ShieldCheck,      desc: 'SHA-256 Hash Chain' },
+  { path: ROUTES.ESCROW,         label: 'Giao Dịch Ký Quỹ',     icon: Lock,             desc: 'Giao dịch ký quỹ' },
+  { path: ROUTES.BESS_PROJECTS,  label: 'Dự Án BESS',           icon: Building2,        desc: 'Vòng đời BESS §5.7' },
+  { path: ROUTES.DASHBOARD,      label: 'Bảng Điều Khiển',      icon: LayoutDashboard,  desc: 'Báo cáo theo Vai trò' },
+  { path: ROUTES.EPR_COMPLIANCE, label: 'Tuân Thủ EPR & ESG',   icon: Globe,            desc: 'Báo cáo môi trường' },
 ];
 
-const ROLES = [
-  { value: 'BUYER',             label: 'Người Mua (Solar EPC / SME)' },
-  { value: 'SUPPLIER',          label: 'Nhà Cung Cấp (Thu hồi Pin)' },
-  { value: 'TESTING_LAB',       label: 'Trung Tâm Kiểm Định (Lab)' },
-  { value: 'SYSTEM_INTEGRATOR', label: 'Nhà Tích Hợp (SI BESS)' },
-  { value: 'LOGISTICS',         label: 'Đơn Vị Vận Chuyển Class 9' },
-  { value: 'MANAGER_STAFF',     label: 'Quản Lý Sàn REBATT' },
-  { value: 'Admin',             label: 'Quản Trị Hệ Thống (Admin)' },
-];
+const ROLES = Object.values(ROLE_CONFIGS).map(r => ({ value: r.value, label: r.label }));
 
 // Bottom nav shows first 4 allowed items + "More" button
 const BOTTOM_NAV_MAX = 4;
@@ -37,9 +32,12 @@ export const AppLayout: React.FC = () => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const allowedNavItems = NAV_ITEMS.filter(item => item.allowedRoles.includes(currentRole));
+  const isCurrentRouteAllowed = isRouteAllowed(location.pathname, currentRole);
+  const allowedNavItems = NAV_ITEMS.filter(item => isRouteAllowed(item.path, currentRole));
   const bottomNavItems = allowedNavItems.slice(0, BOTTOM_NAV_MAX);
+  const currentRoleConfig = ROLE_CONFIGS[currentRole as UserRole];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,26 +105,32 @@ export const AppLayout: React.FC = () => {
           {/* Desktop: Role Switcher dropdown */}
           <div className="hidden md:flex items-center gap-4">
             <div className="relative group">
-              <button className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md py-1.5 px-3 transition">
-                <UserCircle className="w-4 h-4 text-slate-500" />
-                <span className="text-sm font-medium text-slate-700 max-w-[160px] truncate">{ROLES.find(r => r.value === currentRole)?.label}</span>
+              <button className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl py-1.5 px-3 transition">
+                <UserCircle className="w-4 h-4 text-amber-600" />
+                <span className="text-xs font-bold text-slate-800 max-w-[170px] truncate">{currentRoleConfig?.label}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
-              <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-md shadow-lg py-1 hidden group-hover:block z-50">
-                <div className="px-3 py-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                  Chuyển Góc Nhìn Vai Trò
+              <div className="absolute right-0 mt-1 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 hidden group-hover:block z-50">
+                <div className="px-3.5 py-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 flex items-center justify-between">
+                  <span>Chuyển Góc Nhìn Vai Trò</span>
+                  <span className="text-[9px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-mono">RBAC</span>
                 </div>
                 {ROLES.map((r) => (
                   <button
                     key={r.value}
                     onClick={() => setCurrentRole(r.value)}
-                    className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 transition flex items-center justify-between ${
-                      currentRole === r.value ? 'text-amber-800 font-bold bg-amber-50' : 'text-slate-700'
+                    className={`w-full text-left px-3.5 py-2.5 text-xs font-medium hover:bg-slate-50 transition flex items-center justify-between ${
+                      currentRole === r.value ? 'text-amber-900 font-bold bg-amber-50/80 border-l-4 border-amber-500' : 'text-slate-700'
                     }`}
                   >
-                    {r.label}
-                    {currentRole === r.value && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                    <div>
+                      <div>{r.label}</div>
+                      <div className="text-[10px] text-slate-400 font-normal line-clamp-1">
+                        {ROLE_CONFIGS[r.value as UserRole]?.description}
+                      </div>
+                    </div>
+                    {currentRole === r.value && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 ml-2" />}
                   </button>
                 ))}
               </div>
@@ -185,10 +189,10 @@ export const AppLayout: React.FC = () => {
           />
 
           {/* Drawer panel */}
-          <div className="relative ml-auto w-[280px] max-w-[85vw] h-full bg-white flex flex-col shadow-2xl">
+          <div className="relative ml-auto w-[290px] max-w-[85vw] h-full bg-white flex flex-col shadow-2xl">
             {/* Drawer header */}
             <div className="h-14 border-b border-slate-200 flex items-center justify-between px-4 shrink-0">
-              <span className="text-sm font-bold text-slate-900">Menu</span>
+              <span className="text-sm font-bold text-slate-900">Menu & Phân Quyền</span>
               <button
                 onClick={() => setMobileDrawerOpen(false)}
                 className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
@@ -207,7 +211,7 @@ export const AppLayout: React.FC = () => {
                     onClick={() => { setCurrentRole(r.value); }}
                     className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between transition ${
                       currentRole === r.value
-                        ? 'bg-amber-50 text-amber-900 font-bold border border-amber-200'
+                        ? 'bg-amber-50 text-amber-950 font-bold border border-amber-300'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -220,7 +224,7 @@ export const AppLayout: React.FC = () => {
 
             {/* Nav items in drawer */}
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest mb-2">Điều Hướng</p>
+              <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest mb-2">Điều Hướng Khả Dụng ({allowedNavItems.length})</p>
               <div className="space-y-1">
                 {allowedNavItems.map((item) => (
                   <NavLink
@@ -268,9 +272,14 @@ export const AppLayout: React.FC = () => {
       <div className="flex-1 flex w-full">
 
         {/* ── SIDEBAR — Desktop only ── */}
-        <aside className="w-[268px] shrink-0 hidden md:flex flex-col border-r border-slate-200 p-5 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto bg-white">
+        <aside className="w-[275px] shrink-0 hidden md:flex flex-col border-r border-slate-200 p-5 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto bg-white">
           <div className="space-y-2.5">
-            <p className="px-3 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest mb-4 mt-1">Điều Hướng Hệ Thống</p>
+            <div className="flex items-center justify-between px-1 mb-2">
+              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">Mô-đun Khả Dụng</span>
+              <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                {allowedNavItems.length} Chức Năng
+              </span>
+            </div>
             {allowedNavItems.map((item) => (
               <NavLink
                 key={item.path}
@@ -293,23 +302,27 @@ export const AppLayout: React.FC = () => {
             ))}
           </div>
 
-          {/* SHA-256 Status Widget */}
-          <div className="mt-8 p-4 bg-gradient-to-b from-amber-500/10 to-amber-500/5 border border-amber-200/80 rounded-2xl text-xs space-y-2.5">
+          {/* Role Policy Summary */}
+          <div className="mt-8 p-4 bg-gradient-to-b from-slate-900 to-slate-950 text-white rounded-2xl text-xs space-y-2.5 shadow-md">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> Sổ Cái SHA-256
+              <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5" /> Phân Quyền RBAC
               </span>
-              <span className="text-[9px] font-mono font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200">ACTIVE</span>
+              <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">ENFORCED</span>
             </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-              Mọi sự kiện & chứng nhận SOH được mã hóa theo chuỗi khối không thể chỉnh sửa.
+            <p className="text-[11px] text-slate-300 leading-relaxed font-normal">
+              Quyền hạn hiện tại: <span className="font-bold text-amber-400">{currentRoleConfig?.label}</span>. Các route ngoài danh sách sẽ bị chặn 403.
             </p>
           </div>
         </aside>
 
         {/* ── MAIN CONTENT ── */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto pb-24 md:pb-8">
-          <Outlet context={{ currentRole }} />
+          {isCurrentRouteAllowed ? (
+            <Outlet context={{ currentRole }} />
+          ) : (
+            <AccessDenied currentRole={currentRole} onChangeRole={setCurrentRole} />
+          )}
         </main>
       </div>
 
