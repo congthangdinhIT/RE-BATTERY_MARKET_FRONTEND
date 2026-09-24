@@ -212,8 +212,8 @@ export const SmartMatchingPage: React.FC = () => {
                       {(r.estimatedBessPriceVnd / 1_000_000).toFixed(1)}M ₫
                     </p>
                     <button
-                      onClick={() => navigate(ROUTES.ESCROW)}
-                      className="mt-3 w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] rounded-lg flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                      onClick={() => navigate(`${ROUTES.ESCROW}?packId=${pack.id}`)}
+                      className="mt-3 w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] rounded-lg flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
                     >
                       Mua Escrow <ArrowRight className="w-3.5 h-3.5" />
                     </button>

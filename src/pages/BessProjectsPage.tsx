@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Building2, CheckCircle2, XCircle, Clock, Wrench, Package, Zap, Settings, AlertTriangle } from 'lucide-react';
-import { MOCK_BESS_PROJECTS } from '../data/mockData';
+import { Building2, CheckCircle2, XCircle, Clock, Wrench, Package, Zap, Settings, AlertTriangle, QrCode } from 'lucide-react';
+import { StorageManager } from '../lib/storage';
+import { QrCodeModal } from '../components/QrCodeModal';
 import type { BessProject, BessInstallationStatus } from '../types';
 
 const STATUS_CONFIG: Record<BessInstallationStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -32,12 +33,28 @@ const SHORT_STATUS: Record<BessInstallationStatus, string> = {
 };
 
 export const BessProjectsPage: React.FC = () => {
-  const [projects, setProjects] = useState<BessProject[]>(MOCK_BESS_PROJECTS);
+  const [projects, setProjects] = useState<BessProject[]>(() => StorageManager.getBessProjects());
   const { currentRole } = useOutletContext<{ currentRole: string }>();
   const canUpdateBess = ['SYSTEM_INTEGRATOR', 'Admin', 'MANAGER_STAFF'].includes(currentRole);
 
+  const [qrModal, setQrModal] = useState<{
+    isOpen: boolean;
+    projectId: string;
+    serial: string;
+    model: string;
+  }>({
+    isOpen: false,
+    projectId: '',
+    serial: '',
+    model: '',
+  });
+
+  useEffect(() => {
+    setProjects(StorageManager.getBessProjects());
+  }, []);
+
   const advanceStatus = (projectId: string) => {
-    setProjects(prev => prev.map(p => {
+    const updated = projects.map(p => {
       if (p.id !== projectId) return p;
       const currentIdx = STATUS_ORDER.indexOf(p.status as BessInstallationStatus);
       const nextStatus = STATUS_ORDER[currentIdx + 1];
@@ -51,13 +68,17 @@ export const BessProjectsPage: React.FC = () => {
         updates.warrantyEndDate = warrantyEnd.toISOString();
       }
       return { ...p, ...updates };
-    }));
+    });
+    setProjects(updated);
+    StorageManager.saveBessProjects(updated);
   };
 
   const rejectProject = (projectId: string) => {
-    setProjects(prev => prev.map(p =>
+    const updated = projects.map(p =>
       p.id === projectId ? { ...p, status: 'REJECTED' as BessInstallationStatus } : p
-    ));
+    );
+    setProjects(updated);
+    StorageManager.saveBessProjects(updated);
   };
 
   return (
@@ -186,27 +207,76 @@ export const BessProjectsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              {!isTerminal && canUpdateBess && (
-                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100">
+              {/* QR Required Notice for CREATED status */}
+              {project.status === 'CREATED' && (
+                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-center justify-between gap-3 text-amber-900 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <QrCode className="w-6 h-6 text-amber-600 shrink-0" />
+                    <div>
+                      <span className="font-bold text-sm block">Yêu cầu xác nhận Nhận Pin bằng Mã QR</span>
+                      <span className="text-xs text-amber-800">Bắt buộc phải quét mã QR đối chiếu SOH & Serial tại điểm giao hàng trước khi tiến hành Lắp ráp & Thử nghiệm.</span>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => advanceStatus(project.id)}
-                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2"
+                    onClick={() => setQrModal({
+                      isOpen: true,
+                      projectId: project.id,
+                      serial: project.packSerial || `BESS-PACK-${project.id.substring(0, 5).toUpperCase()}`,
+                      model: project.configurationDetails || 'Khối Pin BESS Tích Hợp',
+                    })}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-sm transition shrink-0 cursor-pointer"
                   >
-                    <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-                    {isTesting ? 'Nghiệm Thu ĐẠT → Kích Hoạt BẢO HÀNH' : `Cập Nhật Tiến Độ → ${STATUS_ORDER[currentIdx + 1] ?? '...'}`}
+                    📱 Quét QR Ngay
                   </button>
-                  {isTesting && (
-                    <button
-                      onClick={() => rejectProject(project.id)}
-                      className="px-6 py-3 bg-white hover:bg-red-50 text-red-600 border border-red-200 hover:border-red-300 font-bold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2"
-                    >
-                      <XCircle className="w-5 h-5" />
-                      Nghiệm Thu THẤT BẠI (Lỗi)
-                    </button>
-                  )}
                 </div>
               )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setQrModal({
+                    isOpen: true,
+                    projectId: project.id,
+                    serial: project.packSerial || `BESS-PACK-${project.id.substring(0, 5).toUpperCase()}`,
+                    model: project.configurationDetails || 'Khối Pin BESS Tích Hợp',
+                  })}
+                  className={`px-5 py-3 font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer ${
+                    project.status === 'CREATED'
+                      ? 'bg-amber-500 text-slate-950 hover:bg-amber-600 ring-2 ring-amber-400/50'
+                      : 'bg-slate-900 hover:bg-slate-800 text-amber-400'
+                  }`}
+                >
+                  <QrCode className="w-5 h-5" />
+                  {project.status === 'CREATED' ? '📱 Quét QR Xác Nhận Nhận Pin (Bắt Buộc)' : '📱 Quét QR Nhận Pin'}
+                </button>
+
+                {!isTerminal && canUpdateBess && (
+                  <>
+                    <button
+                      onClick={() => advanceStatus(project.id)}
+                      disabled={project.status === 'CREATED'}
+                      title={project.status === 'CREATED' ? 'Vui lòng quét QR Nhận Pin trước khi cập nhật tiến độ' : ''}
+                      className={`flex-1 py-3 font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 ${
+                        project.status === 'CREATED'
+                          ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                          : 'bg-amber-500 hover:bg-amber-600 text-slate-950 hover:shadow-lg cursor-pointer'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                      {isTesting ? 'Nghiệm Thu ĐẠT → Kích Hoạt BẢO HÀNH' : `Cập Nhật Tiến Độ → ${STATUS_ORDER[currentIdx + 1] ?? '...'}`}
+                    </button>
+                    {isTesting && (
+                      <button
+                        onClick={() => rejectProject(project.id)}
+                        className="px-6 py-3 bg-white hover:bg-red-50 text-red-600 border border-red-200 hover:border-red-300 font-bold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <XCircle className="w-5 h-5" />
+                        Nghiệm Thu THẤT BẠI (Lỗi)
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           );
         })}
@@ -218,6 +288,22 @@ export const BessProjectsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* QR Code Receive Modal */}
+      <QrCodeModal
+        isOpen={qrModal.isOpen}
+        onClose={() => setQrModal(prev => ({ ...prev, isOpen: false }))}
+        title="Quét Mã QR Nhận Pin"
+        subtitle="Quét mã QR tại điểm nhận hàng để đối chiếu SOH & xác thực chữ ký"
+        serialNumber={qrModal.serial}
+        modelName={qrModal.model}
+        actionType="RECEIVE"
+        onConfirmReceive={() => {
+          if (qrModal.projectId) {
+            advanceStatus(qrModal.projectId);
+          }
+        }}
+      />
     </div>
   );
 };

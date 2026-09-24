@@ -1,20 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, ShieldCheck, Users, Zap, TrendingUp, Battery, Package, CheckCircle2 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
-import { MOCK_BATTERY_PACKS, MOCK_PASSPORTS, MOCK_LISTINGS, MOCK_ESCROW_TRANSACTIONS, MOCK_BESS_PROJECTS, MOCK_ORGS } from '../data/mockData';
+import { StorageManager } from '../lib/storage';
 
 export const DashboardPage: React.FC = () => {
   const { currentRole } = useOutletContext<{ currentRole: string }>();
 
-  // Compute stats from mock data
-  const totalPacks = MOCK_BATTERY_PACKS.length;
-  const verifiedPacks = MOCK_BATTERY_PACKS.filter(p => p.status === 'VERIFIED' || p.status === 'LISTED').length;
-  const avgSoh = (MOCK_BATTERY_PACKS.reduce((s, p) => s + p.currentSohPercent, 0) / totalPacks).toFixed(1);
-  const totalCapacityKwh = MOCK_BATTERY_PACKS.reduce((s, p) => s + p.currentCapacityKwh, 0).toFixed(1);
-  const totalOrgs = MOCK_ORGS.length;
-  const activeListings = MOCK_LISTINGS.filter(l => l.isActive && !l.isSold).length;
-  const lockedEscrow = MOCK_ESCROW_TRANSACTIONS.filter(e => e.status === 'LOCKED').length;
-  const escrowValue = MOCK_ESCROW_TRANSACTIONS.filter(e => e.status === 'LOCKED').reduce((s, e) => s + e.amount, 0);
+  const [packs, setPacks] = useState(() => StorageManager.getBatteryPacks());
+  const [passports, setPassports] = useState(() => StorageManager.getPassports());
+  const [listings, setListings] = useState(() => StorageManager.getListings());
+  const [escrows, setEscrows] = useState(() => StorageManager.getEscrows());
+  const [projects, setProjects] = useState(() => StorageManager.getBessProjects());
+  const [orgs, setOrgs] = useState(() => StorageManager.getOrgs());
+
+  useEffect(() => {
+    setPacks(StorageManager.getBatteryPacks());
+    setPassports(StorageManager.getPassports());
+    setListings(StorageManager.getListings());
+    setEscrows(StorageManager.getEscrows());
+    setProjects(StorageManager.getBessProjects());
+    setOrgs(StorageManager.getOrgs());
+  }, []);
+
+  // Compute stats from StorageManager
+  const totalPacks = packs.length;
+  const verifiedPacks = packs.filter(p => p.status === 'VERIFIED' || p.status === 'LISTED').length;
+  const avgSoh = totalPacks > 0 ? (packs.reduce((s, p) => s + (p.currentSohPercent || 0), 0) / totalPacks).toFixed(1) : '0';
+  const totalCapacityKwh = packs.reduce((s, p) => s + (p.currentCapacityKwh || p.originalCapacityKwh || 0), 0).toFixed(1);
+  const totalOrgs = orgs.length;
+  const activeListings = listings.filter(l => l.isActive && !l.isSold).length;
+  const lockedEscrow = escrows.filter(e => e.status === 'LOCKED').length;
+  const escrowValue = escrows.filter(e => e.status === 'LOCKED').reduce((s, e) => s + e.amount, 0);
 
   const STATS = [
     { label: 'Tổng Pin Đăng Ký', value: totalPacks, unit: 'Bộ/Pack', icon: Battery, color: 'text-emerald-600', bg: 'bg-white border-slate-200' },
@@ -23,12 +39,12 @@ export const DashboardPage: React.FC = () => {
     { label: 'Tổng Năng Lượng', value: totalCapacityKwh, unit: 'kWh', icon: Zap, color: 'text-purple-600', bg: 'bg-white border-slate-200' },
     { label: 'Tổ Chức Đăng Ký', value: totalOrgs, unit: 'Tổ chức', icon: Users, color: 'text-blue-600', bg: 'bg-white border-slate-200' },
     { label: 'Tin Đăng (Listings)', value: activeListings, unit: 'Đang mở', icon: Package, color: 'text-teal-600', bg: 'bg-white border-slate-200' },
-    { label: 'Passport SHA-256', value: MOCK_PASSPORTS.length, unit: 'Đã cấp', icon: ShieldCheck, color: 'text-emerald-600', bg: 'bg-white border-slate-200' },
+    { label: 'Passport SHA-256', value: passports.length, unit: 'Đã cấp', icon: ShieldCheck, color: 'text-emerald-600', bg: 'bg-white border-slate-200' },
     { label: 'Đang Khóa Escrow', value: `${(escrowValue / 1_000_000).toFixed(0)}M ₫`, unit: `${lockedEscrow} giao dịch`, icon: Activity, color: 'text-orange-600', bg: 'bg-white border-slate-200' },
   ];
 
   return (
-    <div className="space-y-6 fade-in-up max-w-7xl mx-auto">
+    <div className="space-y-5 sm:space-y-6 fade-in-up max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -45,19 +61,19 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {STATS.map((stat, i) => {
           const Icon = stat.icon;
           return (
-            <div key={i} className={`border rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow ${stat.bg}`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.label}</span>
-                <div className={`p-2 rounded-lg bg-slate-50 border border-slate-100 ${stat.color}`}>
-                  <Icon className="w-4 h-4" />
+            <div key={i} className={`border rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow ${stat.bg}`}>
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-tight">{stat.label}</span>
+                <div className={`p-1.5 sm:p-2 rounded-lg bg-slate-50 border border-slate-100 ${stat.color} shrink-0`}>
+                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
               </div>
-              <p className={`text-3xl font-black font-mono ${stat.color}`}>{stat.value}</p>
-              {stat.unit && <p className="text-[11px] font-medium text-slate-500 mt-1">{stat.unit}</p>}
+              <p className={`text-2xl sm:text-3xl font-black font-mono ${stat.color}`}>{stat.value}</p>
+              {stat.unit && <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 mt-1">{stat.unit}</p>}
             </div>
           );
         })}
@@ -69,11 +85,11 @@ export const DashboardPage: React.FC = () => {
           <h2 className="text-lg font-bold text-slate-900 mb-6">Phân Bố Trạng Thái Pin (BatteryStatus)</h2>
           <div className="space-y-4">
             {(['COLLECTED', 'TESTING_PENDING', 'VERIFIED', 'LISTED', 'ESCROW_LOCKED', 'COMPLETED', 'SPLIT'] as const).map(status => {
-              const count = MOCK_BATTERY_PACKS.filter(p => p.status === status).length;
-              const pct = (count / totalPacks) * 100;
+              const count = packs.filter(p => p.status === status).length;
+              const pct = totalPacks > 0 ? (count / totalPacks) * 100 : 0;
               return (
                 <div key={status} className="flex items-center gap-4 text-sm">
-                  <span className="w-36 text-xs font-mono font-semibold text-slate-500 shrink-0 bg-slate-50 px-2 py-1 rounded border border-slate-100">{status}</span>
+                  <span className="w-20 sm:w-36 text-xs font-mono font-semibold text-slate-500 shrink-0 bg-slate-50 px-2 py-1 rounded border border-slate-100 truncate">{status}</span>
                   <div className="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden shadow-inner">
                     <div
                       className="h-full rounded-full bg-amber-500 transition-all duration-1000 ease-out"
@@ -91,7 +107,7 @@ export const DashboardPage: React.FC = () => {
         <div className="bg-white border border-slate-200 shadow-sm rounded-3xl p-6 md:p-8 flex flex-col">
           <h2 className="text-lg font-bold text-slate-900 mb-6">Dự Án BESS Đang Theo Dõi</h2>
           <div className="flex-1 space-y-4">
-            {MOCK_BESS_PROJECTS.map(p => (
+            {projects.map(p => (
               <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between text-sm py-3 border-b border-slate-100 last:border-0 gap-3">
                 <div className="flex items-center flex-wrap gap-2">
                   <span className="text-slate-800 font-semibold">{p.systemIntegratorName}</span>

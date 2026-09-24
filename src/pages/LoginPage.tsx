@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Zap, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { ROUTES } from '../config/routes';
+import { authService } from '../services/authService';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('buyer@re-battery.vn');
-  const [password, setPassword] = useState('MatKhau123!');
+  const [email, setEmail] = useState('admin@rebattery.com');
+  const [password, setPassword] = useState('Password123!');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate(ROUTES.MARKETPLACE);
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      await authService.login(email, password);
+      navigate(ROUTES.MARKETPLACE);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || err.message || 'Đăng nhập không thành công. Kiểm tra lại thông tin.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -23,6 +35,12 @@ export const LoginPage: React.FC = () => {
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">CHỢ GIAO DỊCH PIN REBATT</h1>
           <p className="text-sm text-slate-500 font-medium">Hệ thống Quản lý B2B Pin Second-Life</p>
         </div>
+
+        {errorMsg && (
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
@@ -55,14 +73,23 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-sm rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2 shadow-md"
+            disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-sm rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2 shadow-md disabled:opacity-50"
           >
-            ĐĂNG NHẬP HỆ THỐNG <ArrowRight className="w-4 h-4 stroke-[3]" />
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> ĐANG ĐĂNG NHẬP...
+              </>
+            ) : (
+              <>
+                ĐĂNG NHẬP HỆ THỐNG <ArrowRight className="w-4 h-4 stroke-[3]" />
+              </>
+            )}
           </button>
         </form>
 
         <div className="pt-6 border-t border-slate-100 text-center text-xs font-semibold text-slate-500 bg-slate-50 rounded-xl p-3 border border-slate-100">
-          Tài khoản Doanh nghiệp: <span className="text-amber-800 font-bold">buyer@re-battery.vn</span>
+          Tài khoản Mẫu: <span className="text-amber-800 font-bold">admin@rebattery.com</span> / <span className="text-amber-800 font-bold">Password123!</span>
         </div>
       </div>
     </div>

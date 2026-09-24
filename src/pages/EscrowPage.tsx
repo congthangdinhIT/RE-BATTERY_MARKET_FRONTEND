@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Lock, CheckCircle2, XCircle, AlertTriangle, ArrowRight, Clock } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
-import { MOCK_ESCROW_TRANSACTIONS } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { Lock, CheckCircle2, XCircle, AlertTriangle, ArrowRight, Clock, Sparkles } from 'lucide-react';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { StorageManager } from '../lib/storage';
 import type { EscrowTransaction, EscrowStatus } from '../types';
 
 const STATUS_CONFIG: Record<EscrowStatus, { label: string; color: string; icon: React.ElementType; desc: string }> = {
@@ -23,24 +23,72 @@ const FLOW_STEPS = [
 ];
 
 export const EscrowPage: React.FC = () => {
-  const [transactions, setTransactions] = useState<EscrowTransaction[]>(MOCK_ESCROW_TRANSACTIONS);
+  const [searchParams] = useSearchParams();
+  const targetPackId = searchParams.get('packId');
+  const [transactions, setTransactions] = useState<EscrowTransaction[]>(() => StorageManager.getEscrows());
   const { currentRole } = useOutletContext<{ currentRole: string }>();
   const canActOnEscrow = ['BUYER', 'SYSTEM_INTEGRATOR', 'Admin', 'MANAGER_STAFF'].includes(currentRole);
+  const [createdNotice, setCreatedNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let currentEscrows = StorageManager.getEscrows();
+    if (targetPackId) {
+      const existing = currentEscrows.find(tx => tx.batteryPackId === targetPackId);
+      if (existing) {
+        const sorted = [existing, ...currentEscrows.filter(tx => tx.id !== existing.id)];
+        setTransactions(sorted);
+        setCreatedNotice(`Đang hiển thị Ký Quỹ Escrow cho sản phẩm: ${existing.packSerial} (${existing.packModel})`);
+      } else {
+        const packs = StorageManager.getBatteryPacks();
+        const listings = StorageManager.getListings();
+        const targetPack = packs.find(p => p.id === targetPackId);
+        const targetListing = listings.find(l => l.batteryPackId === targetPackId);
+
+        if (targetPack) {
+          const newTx: EscrowTransaction = {
+            id: `escrow-${Date.now()}`,
+            orderId: `order-${Date.now()}`,
+            transactionCode: `ESCROW-2026-${Math.floor(10000 + Math.random() * 90000)}`,
+            buyerId: 'org-solar-sme-001',
+            buyerName: 'GreenSolar SME (Bên Mua)',
+            sellerId: targetPack.currentOrganizationId || 'org-vines-001',
+            sellerName: targetPack.currentOrganizationName || 'VinFast EV Services',
+            amount: targetListing ? targetListing.askingPriceVnd : Math.round((targetPack.currentCapacityKwh || 50) * 850000),
+            status: 'LOCKED',
+            lockedAt: new Date().toISOString(),
+            releasedAt: null,
+            releaseNote: null,
+            batteryPackId: targetPack.id,
+            packSerial: targetPack.serialNumber,
+            packModel: `${targetPack.manufacturer} ${targetPack.vehicleModel}`,
+          };
+          const updated = [newTx, ...currentEscrows];
+          StorageManager.saveEscrows(updated);
+          setTransactions(updated);
+          setCreatedNotice(`Đã khởi tạo lệnh ký quỹ Escrow (LOCKED) cho sản phẩm: ${targetPack.serialNumber} (${targetPack.vehicleModel})`);
+        } else {
+          setTransactions(currentEscrows);
+        }
+      }
+    } else {
+      setTransactions(currentEscrows);
+    }
+  }, [targetPackId]);
 
   const handleRelease = (txId: string) => {
-    setTransactions(prev =>
-      prev.map(tx =>
-        tx.id === txId
-          ? { ...tx, status: 'RELEASED', releasedAt: new Date().toISOString(), releaseNote: 'Nghiệm thu đạt. Giải ngân tự động thành công.' }
-          : tx
-      )
+    const updated = transactions.map(tx =>
+      tx.id === txId
+        ? { ...tx, status: 'RELEASED' as EscrowStatus, releasedAt: new Date().toISOString(), releaseNote: 'Nghiệm thu đạt. Giải ngân tự động thành công.' }
+        : tx
     );
+    setTransactions(updated);
+    StorageManager.saveEscrows(updated);
   };
 
   const handleDispute = (txId: string) => {
-    setTransactions(prev =>
-      prev.map(tx => tx.id === txId ? { ...tx, status: 'DISPUTED' } : tx)
-    );
+    const updated = transactions.map(tx => tx.id === txId ? { ...tx, status: 'DISPUTED' as EscrowStatus } : tx);
+    setTransactions(updated);
+    StorageManager.saveEscrows(updated);
   };
 
   return (
@@ -51,6 +99,13 @@ export const EscrowPage: React.FC = () => {
           Cơ chế ký quỹ an toàn: tiền được giữ tại REBATT cho đến khi nghiệm thu BESS thành công (BR-003, BR-004)
         </p>
       </div>
+
+      {createdNotice && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 flex items-center gap-3 text-emerald-900 shadow-sm animate-fade-in">
+          <Sparkles className="w-5 h-5 text-emerald-600 shrink-0" />
+          <p className="text-sm font-bold flex-1">{createdNotice}</p>
+        </div>
+      )}
 
       {/* Commission Info Banner */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, CheckCircle2, Layers, Hash, MapPin, User, Clock, ChevronDown, Search } from 'lucide-react';
-import { MOCK_PASSPORTS } from '../data/mockData';
-import type { PassportEventType } from '../types';
+import { StorageManager } from '../lib/storage';
+import type { PassportEventType, BatteryPassport } from '../types';
 
 const EVENT_COLORS: Record<PassportEventType, string> = {
   COLLECTED:        'text-slate-700 bg-slate-100 border-slate-300',
@@ -18,9 +18,29 @@ const EVENT_COLORS: Record<PassportEventType, string> = {
 };
 
 export const PassportDetailsPage: React.FC = () => {
-  const [selectedCode, setSelectedCode] = useState(MOCK_PASSPORTS[0].passportCode);
-  const passport = MOCK_PASSPORTS.find(p => p.passportCode === selectedCode) ?? MOCK_PASSPORTS[0];
-  const pack = passport.batteryPack;
+  const [passports, setPassports] = useState<BatteryPassport[]>(() => StorageManager.getPassports());
+  const [selectedCode, setSelectedCode] = useState<string>(() => passports[0]?.passportCode || '');
+
+  useEffect(() => {
+    const list = StorageManager.getPassports();
+    setPassports(list);
+    if (list.length > 0 && !selectedCode) {
+      setSelectedCode(list[0].passportCode);
+    }
+  }, []);
+
+  const passport = passports.find(p => p.passportCode === selectedCode) ?? passports[0];
+  const pack = passport?.batteryPack || {
+    vehicleModel: 'Chưa có thông tin',
+    currentSohPercent: 0,
+    currentCapacityKwh: 0,
+    nominalVoltageV: 0,
+    chemistry: 'N/A',
+    formFactor: 'PACK',
+    totalCycles: 0,
+    originalVin: 'N/A'
+  };
+
 
   return (
     <div className="space-y-6 fade-in-up max-w-5xl mx-auto">
@@ -38,9 +58,9 @@ export const PassportDetailsPage: React.FC = () => {
           onChange={(e) => setSelectedCode(e.target.value)}
           className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-10 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer shadow-sm"
         >
-          {MOCK_PASSPORTS.map(p => (
+          {passports.map(p => (
             <option key={p.passportCode} value={p.passportCode}>
-              {p.passportCode} — {p.batteryPack.vehicleModel}
+              {p.passportCode} — {p.batteryPack?.vehicleModel || 'N/A'}
             </option>
           ))}
         </select>

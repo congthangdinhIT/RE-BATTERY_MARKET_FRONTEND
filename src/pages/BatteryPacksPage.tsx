@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Layers, Package, Cpu, CheckCircle2, Clock, XCircle, Scissors, Search, Filter, ChevronLeft, ChevronRight, X, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Layers, Package, Cpu, CheckCircle2, Clock, XCircle, Scissors, Search, Filter, ChevronLeft, ChevronRight, X, AlertTriangle, Loader2, QrCode } from 'lucide-react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { ROUTES } from '../config/routes';
-import { MOCK_BATTERY_PACKS } from '../data/mockData';
-import type { BatteryPack, BatteryStatus, BatteryFormFactor } from '../types';
+import { batteryPackService } from '../services/batteryPackService';
+import { QrCodeModal } from '../components/QrCodeModal';
+import type { BatteryPack, BatteryStatus, BatteryFormFactor, BatteryChemistryType, InspectionType } from '../types';
 
 const STATUS_CONFIG: Record<BatteryStatus, { label: string; color: string; icon: React.ElementType }> = {
   COLLECTED:        { label: 'Đã thu hồi',     color: 'text-slate-700 bg-slate-100 border-slate-300',   icon: Package },
@@ -28,6 +29,108 @@ export const BatteryPacksPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
+
+  const [fetchedPacks, setFetchedPacks] = useState<BatteryPack[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [qrModal, setQrModal] = useState<{
+    isOpen: boolean;
+    serial: string;
+    model: string;
+    soh: number;
+    capacity: number;
+  }>({
+    isOpen: false,
+    serial: '',
+    model: '',
+    soh: 0,
+    capacity: 0,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadPacks = async () => {
+      setLoading(true);
+      const data = await batteryPackService.getBatteryPacks();
+      if (isMounted) {
+        setFetchedPacks(data);
+        setLoading(false);
+      }
+    };
+    loadPacks();
+    return () => { isMounted = false; };
+  }, []);
+
+  // ── Create New Pack State ──────────────────────────────────────────────────
+  const [createdPacks, setCreatedPacks] = useState<BatteryPack[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addFormData, setAddFormData] = useState({
+    serialNumber: '',
+    originalVin: '',
+    manufacturer: 'VinFast Energy',
+    vehicleModel: 'VinFast VF8',
+    chemistry: 'LFP' as BatteryChemistryType,
+    originalCapacityKwh: 87.7,
+    currentSohPercent: 88,
+    nominalVoltageV: 400,
+    totalCycles: 450,
+    formFactor: 'PACK' as BatteryFormFactor,
+    inspectionType: 'BATCH_A' as InspectionType,
+    logisticsClass: 'CLASS_9_UN3480' as 'CLASS_9_UN3480' | 'CLASS_9_UN3481',
+  });
+
+  const handleOpenAddModal = () => {
+    const randomSerial = `BAT-2026-VF${Math.floor(100 + Math.random() * 900)}`;
+    const randomVin = `VF8-VN-2024-${Math.floor(10000 + Math.random() * 90000)}`;
+    setAddFormData({
+      serialNumber: randomSerial,
+      originalVin: randomVin,
+      manufacturer: 'VinFast Energy',
+      vehicleModel: 'VinFast VF8',
+      chemistry: 'LFP',
+      originalCapacityKwh: 87.7,
+      currentSohPercent: 88,
+      nominalVoltageV: 400,
+      totalCycles: 450,
+      formFactor: 'PACK',
+      inspectionType: 'BATCH_A',
+      logisticsClass: 'CLASS_9_UN3480',
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleCreatePackSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const origCap = Number(addFormData.originalCapacityKwh) || 80;
+    const soh = Number(addFormData.currentSohPercent) || 85;
+    const currCap = +(origCap * (soh / 100)).toFixed(2);
+
+    const newPack: BatteryPack = {
+      id: `PACK-NEW-${Date.now()}`,
+      serialNumber: addFormData.serialNumber.trim() || `BAT-NEW-${Date.now()}`,
+      originalVin: addFormData.originalVin.trim() || 'VIN-UNSET',
+      manufacturer: addFormData.manufacturer.trim() || 'Hãng xe',
+      vehicleModel: addFormData.vehicleModel.trim() || 'EV Model',
+      chemistry: addFormData.chemistry,
+      originalCapacityKwh: origCap,
+      currentSohPercent: soh,
+      currentCapacityKwh: currCap,
+      nominalVoltageV: Number(addFormData.nominalVoltageV) || 400,
+      totalCycles: Number(addFormData.totalCycles) || 300,
+      formFactor: addFormData.formFactor,
+      parentPackId: null,
+      status: addFormData.inspectionType === 'BATCH_A' ? 'TESTING_PENDING' : 'COLLECTED',
+      inspectionType: addFormData.inspectionType,
+      passportExpiresAt: null,
+      logisticsClass: addFormData.logisticsClass,
+      currentOrganizationId: 'ORG-SUP-01',
+      currentOrganizationName: 'VinFast Energy Supply',
+      createdAt: new Date().toISOString(),
+    };
+
+    setCreatedPacks(prev => [newPack, ...prev]);
+    setIsAddModalOpen(false);
+  };
 
   // ── Split state ─────────────────────────────────────────────────────────────
   // Override status for split packs (session-only, mirrors SplitBatteryPackCommand)
@@ -71,15 +174,16 @@ export const BatteryPacksPage: React.FC = () => {
     }, 800);
   };
 
-  // Merge virtual modules into displayed packs
+  // Merge created packs & virtual modules into displayed packs
   const allPacks = useMemo(() => {
     return [
-      ...MOCK_BATTERY_PACKS.map(p =>
+      ...createdPacks,
+      ...fetchedPacks.map(p =>
         splitPackIds.has(p.id) ? { ...p, status: 'SPLIT' as BatteryStatus } : p
       ),
       ...virtualModules,
     ];
-  }, [splitPackIds, virtualModules]);
+  }, [createdPacks, fetchedPacks, splitPackIds, virtualModules]);
 
   // Filtered packs
   const filteredPacks = useMemo(() => {
@@ -117,6 +221,232 @@ export const BatteryPacksPage: React.FC = () => {
 
   return (
     <div className="space-y-6 fade-in-up">
+
+      {/* ── Modal Đăng Ký Lô Pin Mới ────────────────────────────────────── */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Đăng Ký Lô Pin EV Mới (Supplier)</h3>
+                  <p className="text-xs text-slate-500">Khai báo thông tin kĩ thuật & lựa chọn luồng kiểm định Asset-Light</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreatePackSubmit} className="p-6 space-y-4 text-xs">
+
+              {/* Grid 2 cột */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Mã Serial Lô Pin *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addFormData.serialNumber}
+                    onChange={(e) => setAddFormData({ ...addFormData, serialNumber: e.target.value })}
+                    placeholder="Vd: BAT-2026-VF801"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Số VIN Xe Tháo Dỡ *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addFormData.originalVin}
+                    onChange={(e) => setAddFormData({ ...addFormData, originalVin: e.target.value })}
+                    placeholder="Vd: VF8-VN-2024-99881"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Hãng Sản Xuất *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addFormData.manufacturer}
+                    onChange={(e) => setAddFormData({ ...addFormData, manufacturer: e.target.value })}
+                    placeholder="Vd: VinFast Energy, CATL..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Mẫu Xe Nguyên Bản *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addFormData.vehicleModel}
+                    onChange={(e) => setAddFormData({ ...addFormData, vehicleModel: e.target.value })}
+                    placeholder="Vd: VinFast VF8, VF9, Tesla Model Y..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Hóa Học Cell Pin (Chemistry)</label>
+                  <select
+                    value={addFormData.chemistry}
+                    onChange={(e) => setAddFormData({ ...addFormData, chemistry: e.target.value as BatteryChemistryType })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none bg-white"
+                  >
+                    <option value="LFP">LFP (Lithium Iron Phosphate - An toàn cao)</option>
+                    <option value="NMC">NMC (Nickel Manganese Cobalt - Mật độ cao)</option>
+                    <option value="NCA">NCA (Nickel Cobalt Aluminum)</option>
+                    <option value="LTO">LTO (Lithium Titanate Oxide)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Hình Thức (Form Factor)</label>
+                  <select
+                    value={addFormData.formFactor}
+                    onChange={(e) => setAddFormData({ ...addFormData, formFactor: e.target.value as BatteryFormFactor })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none bg-white"
+                  >
+                    <option value="PACK">PACK (Bộ khối hoàn chỉnh)</option>
+                    <option value="MODULE">MODULE (Khối module đơn)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Dung Lượng Thiết Kế (kWh) *</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    required
+                    value={addFormData.originalCapacityKwh}
+                    onChange={(e) => setAddFormData({ ...addFormData, originalCapacityKwh: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">SOH Khai Báo Ban Đầu (%)</label>
+                  <input
+                    type="number"
+                    min="30"
+                    max="100"
+                    required
+                    value={addFormData.currentSohPercent}
+                    onChange={(e) => setAddFormData({ ...addFormData, currentSohPercent: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Điện Áp Danh Định (V)</label>
+                  <input
+                    type="number"
+                    required
+                    value={addFormData.nominalVoltageV}
+                    onChange={(e) => setAddFormData({ ...addFormData, nominalVoltageV: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Số Chu Kỳ Sạc (Total Cycles)</label>
+                  <input
+                    type="number"
+                    required
+                    value={addFormData.totalCycles}
+                    onChange={(e) => setAddFormData({ ...addFormData, totalCycles: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Mô hình Asset-Light selection */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 space-y-2 mt-3">
+                <label className="block font-black text-amber-900 text-xs">Mô hình Kiểm Định Asset-Light (BR-001):</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                    addFormData.inspectionType === 'BATCH_A'
+                      ? 'bg-white border-amber-400 ring-2 ring-amber-500/20 shadow-sm'
+                      : 'bg-amber-100/50 border-amber-200 hover:bg-white'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="inspectionType"
+                      checked={addFormData.inspectionType === 'BATCH_A'}
+                      onChange={() => setAddFormData({ ...addFormData, inspectionType: 'BATCH_A' })}
+                      className="mt-0.5 accent-amber-600"
+                    />
+                    <div>
+                      <div className="font-bold text-slate-900">Lô A (Pin theo Lô lớn)</div>
+                      <div className="text-[11px] text-slate-500 leading-tight">Kiểm định ngay khi thu hồi, tối ưu 20–30% chi phí. Trạng thái: <strong>TESTING_PENDING</strong></div>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                    addFormData.inspectionType === 'SINGLE_B'
+                      ? 'bg-white border-amber-400 ring-2 ring-amber-500/20 shadow-sm'
+                      : 'bg-amber-100/50 border-amber-200 hover:bg-white'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="inspectionType"
+                      checked={addFormData.inspectionType === 'SINGLE_B'}
+                      onChange={() => setAddFormData({ ...addFormData, inspectionType: 'SINGLE_B' })}
+                      className="mt-0.5 accent-amber-600"
+                    />
+                    <div>
+                      <div className="font-bold text-slate-900">Gom Đơn B (Pin Nhỏ Lẻ)</div>
+                      <div className="text-[11px] text-slate-500 leading-tight">Chi phí kiểm định 0đ trả trước. Gom đơn sau giao dịch. Trạng thái: <strong>COLLECTED</strong></div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Phân loại Logistics UN */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Phân loại Vận Chuyển Hàng Nguy Hiểm (Logistics UN Class)</label>
+                <select
+                  value={addFormData.logisticsClass}
+                  onChange={(e) => setAddFormData({ ...addFormData, logisticsClass: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none bg-white"
+                >
+                  <option value="CLASS_9_UN3480">CLASS_9_UN3480 (Pin Lithium-ion độc lập)</option>
+                  <option value="CLASS_9_UN3481">CLASS_9_UN3481 (Pin Lithium-ion đóng gói cùng thiết bị)</option>
+                </select>
+              </div>
+
+              {/* Modal footer */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-md transition flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  Xác Nhận Đăng Ký Lô Pin
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Split Confirmation Modal ────────────────────────────────────── */}
       {splitModal && (
@@ -206,16 +536,19 @@ export const BatteryPacksPage: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Quản Lý Danh Mục Pin Xe Điện</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Quản Lý Danh Mục Pin Xe Điện</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Đăng ký, kiểm định SOH và cấp Battery Passport — Luồng:&nbsp;
-            <span className="font-mono text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">COLLECTED → TESTING_PENDING → VERIFIED → LISTED</span>
+            <span className="font-mono text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-[11px]">COLLECTED → TESTING_PENDING → VERIFIED → LISTED</span>
           </p>
         </div>
         {canManagePacks && (
-          <button className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl flex items-center gap-2 shadow-md hover:shadow-lg transition">
+          <button
+            onClick={handleOpenAddModal}
+            className="px-4 py-2 sm:px-5 sm:py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl flex items-center gap-2 shadow-md hover:shadow-lg transition w-full sm:w-auto justify-center sm:justify-start"
+          >
             <Plus className="w-5 h-5 stroke-[2.5]" /> Đăng Ký Lô Pin Mới
           </button>
         )}
@@ -263,8 +596,111 @@ export const BatteryPacksPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Danh sách PIN — Card-Row không cuộn ngang ─────────────────── */}
-      <div className="bg-white shadow-sm rounded-2xl border border-slate-200 overflow-hidden">
+      {loading && (
+        <div className="py-8 flex items-center justify-center gap-2 text-slate-500 text-sm font-semibold">
+          <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
+          <span>Đang tải danh mục pin từ API Backend...</span>
+        </div>
+      )}
+
+      {/* Pagination — shared for both views */}
+
+      {/* ── Danh sách PIN ── */}
+      {/* Mobile card view */}
+      <div className="md:hidden space-y-3">
+        {paginatedPacks.length > 0 ? (
+          paginatedPacks.map((pack) => {
+            const statusCfg = STATUS_CONFIG[pack.status];
+            const StatusIcon = statusCfg.icon;
+            return (
+              <div key={pack.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono font-bold text-xs text-slate-900">{pack.serialNumber}</span>
+                      {pack.parentPackId && (
+                        <span className="text-[9px] font-mono text-pink-700 border border-pink-200 bg-pink-50 px-1 py-0.5 rounded">↳ MOD</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">{pack.vehicleModel} — {pack.manufacturer}</div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border font-bold text-[10px] shrink-0 ${statusCfg.color}`}>
+                    <StatusIcon className="w-3 h-3" />
+                    {statusCfg.label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs mb-3">
+                  <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                    <div className="text-[9px] text-slate-400 font-semibold uppercase mb-0.5">SOH</div>
+                    <div className={`font-mono font-black text-sm ${
+                      pack.currentSohPercent >= 85 ? 'text-emerald-600' :
+                      pack.currentSohPercent >= 70 ? 'text-amber-600' : 'text-red-600'
+                    }`}>{pack.currentSohPercent}%</div>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                    <div className="text-[9px] text-slate-400 font-semibold uppercase mb-0.5">Dung lượng</div>
+                    <div className="font-mono font-bold text-xs text-slate-800">{pack.currentCapacityKwh.toFixed(1)} kWh</div>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                    <div className="text-[9px] text-slate-400 font-semibold uppercase mb-0.5">Hóa học</div>
+                    <div className={`font-mono font-bold text-xs ${
+                      pack.chemistry === 'NMC' ? 'text-blue-700' :
+                      pack.chemistry === 'NCA' ? 'text-purple-700' : 'text-emerald-700'
+                    }`}>{pack.chemistry}</div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {pack.inspectionType === 'BATCH_A' && (
+                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border text-amber-800 bg-amber-50 border-amber-300">🏭 Lô A</span>
+                    )}
+                    {pack.inspectionType === 'SINGLE_B' && (
+                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border text-purple-800 bg-purple-50 border-purple-300">🔄 Gom B</span>
+                    )}
+                    <span className="font-mono text-[10px] text-slate-600">{pack.nominalVoltageV}V</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setQrModal({
+                        isOpen: true,
+                        serial: pack.serialNumber,
+                        model: `${pack.manufacturer} ${pack.vehicleModel}`,
+                        soh: pack.currentSohPercent,
+                        capacity: pack.currentCapacityKwh,
+                      })}
+                      className="inline-flex items-center gap-1 text-[11px] text-slate-900 bg-amber-400 font-extrabold px-2 py-0.5 rounded shadow-xs hover:bg-amber-500 cursor-pointer"
+                    >
+                      <QrCode className="w-3 h-3 text-slate-950" /> QR Pin
+                    </button>
+                    <button
+                      onClick={() => navigate(ROUTES.PASSPORTS)}
+                      className="text-[11px] text-amber-700 font-bold hover:underline"
+                    >
+                      Passport
+                    </button>
+                    {canManagePacks && pack.formFactor === 'PACK' && pack.status !== 'SPLIT' && (
+                      <button
+                        onClick={() => handleOpenSplit(pack)}
+                        className="text-[11px] text-pink-600 font-bold hover:underline"
+                      >
+                        Tách
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="p-10 text-center text-slate-400 bg-white border border-slate-200 border-dashed rounded-2xl">
+            <Package className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+            Không tìm thấy lô pin nào phù hợp.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block bg-white shadow-sm rounded-2xl border border-slate-200 overflow-hidden">
 
         {/* Column header */}
         <div className="grid grid-cols-[1fr_auto] items-center px-4 py-2.5 bg-slate-50 border-b border-slate-200">
@@ -387,6 +823,18 @@ export const BatteryPacksPage: React.FC = () => {
                     </span>
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setQrModal({
+                          isOpen: true,
+                          serial: pack.serialNumber,
+                          model: `${pack.manufacturer} ${pack.vehicleModel}`,
+                          soh: pack.currentSohPercent,
+                          capacity: pack.currentCapacityKwh,
+                        })}
+                        className="inline-flex items-center gap-1 text-[11px] text-slate-900 bg-amber-400 font-extrabold px-2 py-0.5 rounded shadow-xs hover:bg-amber-500 cursor-pointer"
+                      >
+                        <QrCode className="w-3 h-3 text-slate-950" /> QR
+                      </button>
+                      <button
                         onClick={() => navigate(ROUTES.PASSPORTS)}
                         className="text-[11px] text-amber-700 font-bold hover:text-amber-800 hover:underline"
                       >
@@ -412,65 +860,58 @@ export const BatteryPacksPage: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Pagination Bar */}
-        {totalItems > 0 && (
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
-              <span>Hiển thị <strong className="text-slate-900">{startIndex + 1}</strong>–<strong className="text-slate-900">{endIndex}</strong> trong tổng số <strong className="text-slate-900">{totalItems}</strong> lô pin</span>
-              <div className="flex items-center gap-1.5 ml-2 border-l border-slate-300 pl-3">
-                <span className="text-slate-500">Số lượng/trang:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                >
-                  <option value={6}>6</option>
-                  <option value={12}>12</option>
-                  <option value={24}>24</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={safeCurrentPage === 1}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                title="Trang trước"
+      {/* Shared Pagination Bar — works for both mobile & desktop */}
+      {totalItems > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3 text-xs text-slate-600 font-medium flex-wrap">
+            <span>Hiển thị <strong className="text-slate-900">{startIndex + 1}</strong>–<strong className="text-slate-900">{endIndex}</strong> trong tổng số <strong className="text-slate-900">{totalItems}</strong> lô pin</span>
+            <div className="flex items-center gap-1.5 border-l border-slate-300 pl-3">
+              <span className="text-slate-500">Số lượng/trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg font-mono text-xs font-bold transition ${
-                    safeCurrentPage === page
-                      ? 'bg-amber-500 text-slate-950 shadow-sm'
-                      : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={safeCurrentPage === totalPages}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                title="Trang sau"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                <option value={6}>6</option>
+                <option value={12}>12</option>
+                <option value={24}>24</option>
+              </select>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={safeCurrentPage === 1}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-8 h-8 rounded-lg font-mono text-xs font-bold transition ${
+                  safeCurrentPage === page
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={safeCurrentPage === totalPages}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2 text-[11px] pt-2">
@@ -480,6 +921,19 @@ export const BatteryPacksPage: React.FC = () => {
           </span>
         ))}
       </div>
+
+      {/* QR Code Modal hiển thị mã QR cho pin riêng lẻ */}
+      <QrCodeModal
+        isOpen={qrModal.isOpen}
+        onClose={() => setQrModal(prev => ({ ...prev, isOpen: false }))}
+        title="Mã QR Khối Pin Kỹ Thuật Số"
+        subtitle="Quét mã QR để truy xuất trực tiếp nguồn gốc & thông số SOH"
+        serialNumber={qrModal.serial}
+        modelName={qrModal.model}
+        sohPercent={qrModal.soh}
+        capacityKwh={qrModal.capacity}
+        actionType="VIEW_ONLY"
+      />
     </div>
   );
 };

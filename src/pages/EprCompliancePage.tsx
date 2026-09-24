@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Globe, Recycle, Award, Leaf, TrendingUp, ShieldCheck, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
-import { MOCK_BATTERY_PACKS } from '../data/mockData';
+import { StorageManager } from '../lib/storage';
 
 // ── Timeline pháp lý ──────────────────────────────────────────────────────────
 const LEGAL_TIMELINE = [
@@ -54,24 +54,30 @@ const LEGAL_TIMELINE = [
 ];
 
 export const EprCompliancePage: React.FC = () => {
-  const totalCapacity = MOCK_BATTERY_PACKS.reduce((s, p) => s + p.currentCapacityKwh, 0);
+  const [packs, setPacks] = useState(() => StorageManager.getBatteryPacks());
+
+  useEffect(() => {
+    setPacks(StorageManager.getBatteryPacks());
+  }, []);
+
+  const totalCapacity = packs.reduce((s, p) => s + (p.currentCapacityKwh || p.originalCapacityKwh || 0), 0);
   const co2Saved = (totalCapacity * 0.45).toFixed(1);
   const metalRecovered = (totalCapacity * 1.2).toFixed(1);
-  const batchAPacks = MOCK_BATTERY_PACKS.filter(p => p.inspectionType === 'BATCH_A').length;
-  const listedPacks = MOCK_BATTERY_PACKS.filter(p => p.status === 'LISTED').length;
+  const batchAPacks = packs.filter(p => p.inspectionType === 'BATCH_A').length;
+  const listedPacks = packs.filter(p => p.status === 'LISTED').length;
   const batchARate = listedPacks > 0 ? Math.round((batchAPacks / listedPacks) * 100) : 0;
 
   return (
-    <div className="space-y-6 fade-in-up max-w-6xl mx-auto">
+    <div className="space-y-5 sm:space-y-6 fade-in-up max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Tuân Thủ EPR & Báo Cáo ESG</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Tuân Thủ EPR &amp; Báo Cáo ESG</h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-1">
           Trách Nhiệm Mở Rộng Của Nhà Sản Xuất (Luật BVMT 2020) · Mô hình Asset-Light Zero-Inventory · Hộ chiếu Pin Số
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
         {[
           { label: 'Tỷ Lệ Tái Sử Dụng (Vòng 2)', value: '78.4%',               unit: 'so với 0% chôn lấp',            icon: Recycle,     color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
           { label: 'CO₂ Khí Thải Giảm Trừ',       value: `${co2Saved} tấn`,     unit: '~0.45 T/kWh second-life',       icon: Leaf,        color: 'text-green-600',   bg: 'bg-green-50 border-green-200' },
@@ -82,15 +88,15 @@ export const EprCompliancePage: React.FC = () => {
         ].map((item, i) => {
           const Icon = item.icon;
           return (
-            <div key={i} className={`border rounded-3xl p-6 shadow-sm ${item.bg}`}>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">{item.label}</p>
-                <div className="p-2 bg-white rounded-lg shadow-sm">
-                  <Icon className={`w-5 h-5 ${item.color}`} />
+            <div key={i} className={`border rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm ${item.bg}`}>
+              <div className="flex items-center justify-between mb-2 sm:mb-4">
+                <p className="text-[9px] sm:text-[10px] text-slate-600 font-bold uppercase tracking-widest leading-tight">{item.label}</p>
+                <div className="p-1.5 sm:p-2 bg-white rounded-lg shadow-sm shrink-0">
+                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.color}`} />
                 </div>
               </div>
-              <p className={`text-3xl font-black font-mono ${item.color}`}>{item.value}</p>
-              <p className="text-xs font-semibold text-slate-500 mt-1.5">{item.unit}</p>
+              <p className={`text-2xl sm:text-3xl font-black font-mono ${item.color}`}>{item.value}</p>
+              <p className="text-[10px] sm:text-xs font-semibold text-slate-500 mt-1">{item.unit}</p>
             </div>
           );
         })}

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createHashRouter, Navigate } from 'react-router-dom';
 import { ROUTES } from '../config/routes';
 import { AppLayout } from '../components/layout/AppLayout';
 import { MarketplacePage } from '../pages/MarketplacePage';
@@ -12,7 +12,7 @@ import { EprCompliancePage } from '../pages/EprCompliancePage';
 import { PublicTracePage } from '../pages/PublicTracePage';
 import { LoginPage } from '../pages/LoginPage';
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: ROUTES.LOGIN,
     element: <LoginPage />
@@ -37,3 +37,4 @@ export const router = createBrowserRouter([
     ]
   }
 ]);
+
