@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, QrCode, CheckCircle2, Copy, ShieldCheck, ExternalLink } from 'lucide-react';
+import { X, QrCode, CheckCircle2, Copy, ShieldCheck } from 'lucide-react';
 
 interface QrCodeModalProps {
   isOpen: boolean;
@@ -34,11 +34,12 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
   if (!isOpen) return null;
 
-  const traceCode = passportCode || `PASS-20260924-${serialNumber.substring(0, 5).toUpperCase()}`;
-  const traceUrl = `${window.location.origin}/#/trace/${traceCode}`;
+  // Build absolute target URL including host and base path (e.g. GitHub Pages repo path)
+  const baseUrl = window.location.href.split('#')[0].replace(/\/$/, '');
+  const qrTargetUrl = `${baseUrl}/#/passports`;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(traceUrl);
+    navigator.clipboard.writeText(qrTargetUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -65,7 +66,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-black text-slate-900 tracking-tight leading-snug">{title}</h3>
-              <p className="text-xs text-slate-500 font-medium">{subtitle || 'Quét mã QR để tra cứu hoặc nghiệm thu pin'}</p>
+              <p className="text-xs text-slate-500 font-medium">{subtitle || 'Quét mã QR để nhận pin hoặc kiểm tra'}</p>
             </div>
           </div>
           <button
@@ -81,14 +82,14 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           {/* Real Scannable QR Code Image */}
           <div className="w-52 h-52 bg-white border-4 border-slate-900 rounded-2xl p-2 shadow-md flex items-center justify-center relative group">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(traceUrl)}`}
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrTargetUrl)}`}
               alt={`Mã QR ${serialNumber}`}
               className="w-full h-full object-contain rounded-lg transition transform group-hover:scale-105"
             />
           </div>
 
           <div>
-            <p className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">MÃ SERIAL PIN (QUÉT ĐƯỢC BẰNG ĐIỆN THOẠI THẬT)</p>
+            <p className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">MÃ QR ĐỊNH DANH (QUÉT BẰNG ĐIỆN THOẠI)</p>
             <p className="text-base font-black font-mono text-slate-900 mt-0.5">{serialNumber}</p>
             {passportCode && (
               <p className="text-xs font-mono font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-md border border-amber-200 inline-block mt-1">
@@ -150,19 +151,11 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopy}
-              className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Copy className="w-4 h-4 text-slate-500" />
-              {copied ? 'Đã sao chép link!' : 'Sao chép link QR'}
+              {copied ? 'Đã sao chép link QR!' : 'Sao chép link QR'}
             </button>
-            <a
-              href={traceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
-            >
-              <ExternalLink className="w-4 h-4" /> Tra cứu
-            </a>
           </div>
         </div>
       </div>
